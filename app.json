@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Groove Alarm",
+    "slug": "groove-alarm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F0E17"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kalopsialabs.groovealarm",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Groove Alarm needs camera access to detect your dance moves and dismiss the alarm.",
+        "NSPhotoLibraryAddUsageDescription": "Groove Alarm needs access to save your dance videos to your camera roll.",
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "remote-notification"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F0E17"
+      },
+      "package": "com.kalopsialabs.groovealarm",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.USE_EXACT_ALARM",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Groove Alarm needs camera access to detect your dance moves."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF00FF",
+          "sounds": ["./assets/sounds/alarm.mp3"],
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Groove Alarm needs access to your photo library to save dance videos.",
+          "savePhotosPermission": "Groove Alarm needs permission to save your dance videos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "revenueCatApiKeyIos": "YOUR_REVENUECAT_IOS_API_KEY",
+      "revenueCatApiKeyAndroid": "YOUR_REVENUECAT_ANDROID_API_KEY",
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
