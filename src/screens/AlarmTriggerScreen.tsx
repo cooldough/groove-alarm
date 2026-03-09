@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, Dimensions, Vibration } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Audio } from 'expo-av';
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
-import * as Haptics from 'expo-haptics';
+import Sound from 'react-native-sound';
+import KeepAwake from 'react-native-keep-awake';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import MotionDetector, { getScoreComment } from '../components/MotionDetector';
 import PostAlarmModal from '../components/PostAlarmModal';
@@ -13,6 +13,8 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'AlarmTrigger'>;
 type AlarmTriggerRouteProp = RouteProp<RootStackParamList, 'AlarmTrigger'>;
+
+Sound.setCategory('Playback');
 
 const { width } = Dimensions.get('window');
 
@@ -28,17 +30,17 @@ export default function AlarmTriggerScreen() {
   const [finalScore, setFinalScore] = useState(0);
   const [finalComment, setFinalComment] = useState('');
   const [showPostAlarmModal, setShowPostAlarmModal] = useState(false);
-  const alarmSoundRef = useRef<Audio.Sound | null>(null);
-  const danceSoundRef = useRef<Audio.Sound | null>(null);
+  const alarmSoundRef = useRef<Sound | null>(null);
+  const danceSoundRef = useRef<Sound | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    activateKeepAwakeAsync();
+    KeepAwake.activate();
     loadSounds();
     startVibration();
 
     return () => {
-      deactivateKeepAwake();
+      KeepAwake.deactivate();
       stopSounds();
       Vibration.cancel();
       if (timerRef.current) {
@@ -64,72 +66,73 @@ export default function AlarmTriggerScreen() {
     }
   }, [timeRemaining, isComplete]);
 
-  const loadSounds = async () => {
+  const loadSounds = () => {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
+      const alarmSound = new Sound('alarm.mp3', Sound.MAIN_BUNDLE, (error) => {
+        if (error) {
+          console.error('Error loading alarm sound:', error);
+          return;
+        }
+        alarmSound.setNumberOfLoops(-1);
+        alarmSound.setVolume(1.0);
+        alarmSound.play();
       });
-
-      const { sound: alarmSound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/alarm.mp3'),
-        { isLooping: true, volume: 1.0 }
-      );
       alarmSoundRef.current = alarmSound;
 
-      const { sound: danceSound } = await Audio.Sound.createAsync(
-        require('../../assets/sounds/dance.mp3'),
-        { isLooping: true, volume: 1.0 }
-      );
+      const danceSound = new Sound('dance.mp3', Sound.MAIN_BUNDLE, (error) => {
+        if (error) {
+          console.error('Error loading dance sound:', error);
+          return;
+        }
+        danceSound.setNumberOfLoops(-1);
+        danceSound.setVolume(0);
+      });
       danceSoundRef.current = danceSound;
-
-      await alarmSound.playAsync();
     } catch (error) {
       console.error('Error loading sounds:', error);
     }
   };
 
-  const playAlarmSound = async () => {
+  const playAlarmSound = () => {
     try {
       if (danceSoundRef.current) {
-        await danceSoundRef.current.setVolumeAsync(0);
-        await danceSoundRef.current.pauseAsync();
+        danceSoundRef.current.setVolume(0);
+        danceSoundRef.current.pause();
       }
       if (alarmSoundRef.current) {
-        await alarmSoundRef.current.setVolumeAsync(1);
-        await alarmSoundRef.current.playAsync();
+        alarmSoundRef.current.setVolume(1);
+        alarmSoundRef.current.play();
       }
     } catch (error) {
       console.error('Error playing alarm sound:', error);
     }
   };
 
-  const playDanceSound = async () => {
+  const playDanceSound = () => {
     try {
       if (alarmSoundRef.current) {
-        await alarmSoundRef.current.setVolumeAsync(0.2);
+        alarmSoundRef.current.setVolume(0.2);
       }
       if (danceSoundRef.current) {
-        await danceSoundRef.current.setVolumeAsync(1);
-        await danceSoundRef.current.playAsync();
+        danceSoundRef.current.setVolume(1);
+        danceSoundRef.current.play();
       }
     } catch (error) {
       console.error('Error playing dance sound:', error);
     }
   };
 
-  const stopSounds = async () => {
+  const stopSounds = () => {
     try {
       if (alarmSoundRef.current) {
-        await alarmSoundRef.current.stopAsync();
-        await alarmSoundRef.current.unloadAsync();
+        alarmSoundRef.current.stop();
+        alarmSoundRef.current.release();
+        alarmSoundRef.current = null;
       }
       if (danceSoundRef.current) {
-        await danceSoundRef.current.stopAsync();
-        await danceSoundRef.current.unloadAsync();
+        danceSoundRef.current.stop();
+        danceSoundRef.current.release();
+        danceSoundRef.current = null;
       }
     } catch (error) {
       console.error('Error stopping sounds:', error);
@@ -142,7 +145,7 @@ export default function AlarmTriggerScreen() {
 
   const startTimer = () => {
     if (timerRef.current) return;
-    
+
     timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
@@ -168,11 +171,11 @@ export default function AlarmTriggerScreen() {
     setCurrentScore(score);
   }, []);
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     setIsComplete(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    ReactNativeHapticFeedback.trigger('notificationSuccess');
     Vibration.cancel();
-    await stopSounds();
+    stopSounds();
 
     const score = currentScore;
     const comment = getScoreComment(score);
@@ -183,7 +186,11 @@ export default function AlarmTriggerScreen() {
 
   const handlePostAlarmClose = () => {
     setShowPostAlarmModal(false);
-    navigation.replace('Success', { duration, score: finalScore, comment: finalComment });
+    navigation.replace('Success', {
+      duration,
+      score: finalScore,
+      comment: finalComment,
+    });
   };
 
   const progress = ((duration - timeRemaining) / duration) * 100;
@@ -201,10 +208,10 @@ export default function AlarmTriggerScreen() {
         </Text>
 
         <View style={styles.cameraContainer}>
-          <MotionDetector 
-            onDancing={setIsDancing} 
+          <MotionDetector
+            onDancing={setIsDancing}
             onScoreUpdate={handleScoreUpdate}
-            isActive={!isComplete} 
+            isActive={!isComplete}
           />
         </View>
 

@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import * as Notifications from 'expo-notifications';
 
 import { useAppStore } from '../lib/store';
-import { addNotificationResponseListener } from '../lib/notifications';
+import { onForegroundEvent, EventType } from '../lib/notifications';
 
 import OnboardingScreen from '../screens/OnboardingScreen';
 import PaywallScreen from '../screens/PaywallScreen';
@@ -26,19 +25,22 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { isFirstTimeUser, loadPersistedState, setActiveAlarmId } = useAppStore();
+  const { isFirstTimeUser, loadPersistedState, setActiveAlarmId } =
+    useAppStore();
 
   useEffect(() => {
     loadPersistedState();
-    
-    const subscription = addNotificationResponseListener((response) => {
-      const data = response.notification.request.content.data;
-      if (data?.alarmId && data?.type === 'alarm') {
-        setActiveAlarmId(data.alarmId as number);
+
+    const unsubscribe = onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS) {
+        const data = detail.notification?.data;
+        if (data?.alarmId && data?.type === 'alarm') {
+          setActiveAlarmId(Number(data.alarmId));
+        }
       }
     });
 
-    return () => subscription.remove();
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -56,8 +58,8 @@ export default function RootNavigator() {
         </>
       ) : null}
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
-      <Stack.Screen 
-        name="AlarmTrigger" 
+      <Stack.Screen
+        name="AlarmTrigger"
         component={AlarmTriggerScreen}
         options={{ gestureEnabled: false }}
       />

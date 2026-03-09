@@ -7,5 +7,5 @@ module.exports = {
       sourceDir: './android',
     },
   },
-  assets: ['./assets/fonts'],
+  assets: ['./assets/fonts', './assets/sounds'],
 };

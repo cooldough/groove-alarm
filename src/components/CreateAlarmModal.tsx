@@ -9,7 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { X } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import Button from './Button';
 import Badge from './Badge';
@@ -61,11 +61,11 @@ export default function CreateAlarmModal({
 
   const toggleDay = (day: number) => {
     if (!isPremium) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      ReactNativeHapticFeedback.trigger('notificationWarning');
       return;
     }
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    ReactNativeHapticFeedback.trigger('impactLight');
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter((d) => d !== day));
     } else {
@@ -76,10 +76,10 @@ export default function CreateAlarmModal({
 
   const selectDuration = (dur: number) => {
     if (!isPremium && dur > 15) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      ReactNativeHapticFeedback.trigger('notificationWarning');
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    ReactNativeHapticFeedback.trigger('impactLight');
     setDuration(dur);
   };
 

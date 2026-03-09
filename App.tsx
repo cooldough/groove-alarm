@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Font from 'expo-font';
-import { useFonts } from 'expo-font';
-import { useKeepAwake } from 'expo-keep-awake';
+import KeepAwake from 'react-native-keep-awake';
 
 import RootNavigator from './src/navigation/RootNavigator';
 import { useAppStore } from './src/lib/store';
@@ -23,30 +21,22 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
-  useKeepAwake();
-  
-  const [fontsLoaded] = useFonts({
-    Orbitron: require('./assets/fonts/Orbitron-Bold.ttf'),
-    Rajdhani: require('./assets/fonts/Rajdhani-Regular.ttf'),
-    'Rajdhani-Bold': require('./assets/fonts/Rajdhani-Bold.ttf'),
-    ShareTechMono: require('./assets/fonts/ShareTechMono-Regular.ttf'),
-  });
-
   useEffect(() => {
+    KeepAwake.activate();
     setupNotifications();
     initializePurchases();
-  }, []);
 
-  if (!fontsLoaded) {
-    return null;
-  }
+    return () => {
+      KeepAwake.deactivate();
+    };
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <NavigationContainer>
-            <StatusBar style="light" />
+            <StatusBar barStyle="light-content" backgroundColor="#0F0E17" />
             <RootNavigator />
           </NavigationContainer>
         </QueryClientProvider>

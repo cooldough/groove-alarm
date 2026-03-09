@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,11 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
-import { Camera } from 'expo-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,42 +31,61 @@ const SLIDES = [
     id: '1',
     title: 'STOP SNOOZING,',
     subtitle: 'START GROOVING',
-    description: 'The only alarm that won\'t stop until you bust a move. 15 seconds of dance is all it takes to start your day right.',
+    description:
+      "The only alarm that won't stop until you bust a move. 15 seconds of dance is all it takes to start your day right.",
     showCamera: false,
   },
   {
     id: '2',
     title: 'MOTION',
     subtitle: 'DETECTION',
-    description: 'We use your camera to detect movement. Dance, jump, or shake - just keep moving to dismiss your alarm!',
+    description:
+      'We use your camera to detect movement. Dance, jump, or shake - just keep moving to dismiss your alarm!',
     showCamera: true,
   },
   {
     id: '3',
     title: 'READY TO',
     subtitle: 'WAKE UP?',
-    description: 'Set your first alarm and never oversleep again. Your body will thank you!',
+    description:
+      'Set your first alarm and never oversleep again. Your body will thank you!',
     showCamera: false,
   },
 ];
+
+function CameraPreview() {
+  const device = useCameraDevice('front');
+  const { hasPermission } = useCameraPermission();
+
+  if (!hasPermission || !device) return null;
+
+  return <Camera style={styles.camera} device={device} isActive={true} />;
+}
 
 export default function OnboardingScreen() {
   const navigation = useNavigation<NavigationProp>();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [cameraPermission, setCameraPermission] = useState<boolean | null>(null);
+  const [cameraGranted, setCameraGranted] = useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
   const { setFirstTimeUser } = useAppStore();
 
+  useEffect(() => {
+    if (hasPermission) {
+      setCameraGranted(true);
+    }
+  }, [hasPermission]);
+
   const requestCameraPermission = async () => {
-    const { status } = await Camera.requestCameraPermissionsAsync();
-    setCameraPermission(status === 'granted');
+    const granted = await requestPermission();
+    setCameraGranted(granted);
   };
 
   const handleNext = () => {
-    if (currentIndex === 1 && cameraPermission === null) {
+    if (currentIndex === 1 && !cameraGranted) {
       requestCameraPermission();
     }
-    
+
     if (currentIndex < SLIDES.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
     } else {
@@ -82,11 +105,17 @@ export default function OnboardingScreen() {
     });
   };
 
-  const renderSlide = ({ item, index }: { item: typeof SLIDES[0]; index: number }) => (
+  const renderSlide = ({
+    item,
+    index,
+  }: {
+    item: (typeof SLIDES)[0];
+    index: number;
+  }) => (
     <View style={styles.slide}>
-      {item.showCamera && cameraPermission ? (
+      {item.showCamera && cameraGranted ? (
         <View style={styles.cameraPreview}>
-          <Camera style={styles.camera} type={Camera.Constants.Type.front} />
+          <CameraPreview />
         </View>
       ) : (
         <View style={styles.iconContainer}>

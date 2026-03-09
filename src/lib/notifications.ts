@@ -1,45 +1,32 @@
-import * as Notifications from 'expo-notifications';
-import * as TaskManager from 'expo-task-manager';
+import notifee, {
+  AndroidImportance,
+  AndroidVisibility,
+  TriggerType,
+  TimestampTrigger,
+  EventType,
+  Event,
+} from '@notifee/react-native';
 import { Platform } from 'react-native';
 
-const ALARM_TASK = 'ALARM_TRIGGER_TASK';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    priority: Notifications.AndroidNotificationPriority.MAX,
-  }),
-});
-
 export async function setupNotifications() {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  
-  if (finalStatus !== 'granted') {
-    console.log('Notification permissions not granted');
-    return false;
-  }
+  const settings = await notifee.requestPermission();
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('alarms', {
+    await notifee.createChannel({
+      id: 'alarms',
       name: 'Alarms',
-      importance: Notifications.AndroidImportance.MAX,
+      importance: AndroidImportance.HIGH,
+      vibration: true,
       vibrationPattern: [0, 250, 250, 250],
+      lights: true,
       lightColor: '#FF00FF',
-      sound: 'alarm.wav',
-      enableVibrate: true,
+      sound: 'alarm',
+      visibility: AndroidVisibility.PUBLIC,
       bypassDnd: true,
     });
   }
 
-  return true;
+  return settings.authorizationStatus >= 1;
 }
 
 export async function scheduleAlarm(
@@ -47,47 +34,83 @@ export async function scheduleAlarm(
   time: string,
   label: string,
   days: number[] = [],
-  isOneTime: boolean = true
+  isOneTime: boolean = true,
 ): Promise<string[]> {
   const [hours, minutes] = time.split(':').map(Number);
   const notificationIds: string[] = [];
 
   if (isOneTime || days.length === 0) {
     const trigger = getNextTriggerDate(hours, minutes);
-    
-    const id = await Notifications.scheduleNotificationAsync({
-      content: {
+
+    const timestampTrigger: TimestampTrigger = {
+      type: TriggerType.TIMESTAMP,
+      timestamp: trigger.getTime(),
+      alarmManager: {
+        allowWhileIdle: true,
+      },
+    };
+
+    const id = await notifee.createTriggerNotification(
+      {
         title: 'Groove Alarm',
         body: label || 'Time to wake up and dance!',
-        sound: 'alarm.wav',
-        priority: 'max',
-        data: { alarmId, type: 'alarm' },
+        data: { alarmId: String(alarmId), type: 'alarm' },
+        android: {
+          channelId: 'alarms',
+          importance: AndroidImportance.HIGH,
+          sound: 'alarm',
+          fullScreenAction: {
+            id: 'default',
+          },
+          pressAction: {
+            id: 'default',
+          },
+        },
+        ios: {
+          sound: 'alarm.mp3',
+          critical: true,
+          criticalVolume: 1.0,
+        },
       },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: trigger,
-        channelId: 'alarms',
-      },
-    });
+      timestampTrigger,
+    );
     notificationIds.push(id);
   } else {
     for (const day of days) {
-      const id = await Notifications.scheduleNotificationAsync({
-        content: {
+      const trigger = getNextWeekdayTrigger(hours, minutes, day);
+
+      const timestampTrigger: TimestampTrigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: trigger.getTime(),
+        alarmManager: {
+          allowWhileIdle: true,
+        },
+      };
+
+      const id = await notifee.createTriggerNotification(
+        {
           title: 'Groove Alarm',
           body: label || 'Time to wake up and dance!',
-          sound: 'alarm.wav',
-          priority: 'max',
-          data: { alarmId, type: 'alarm' },
+          data: { alarmId: String(alarmId), type: 'alarm' },
+          android: {
+            channelId: 'alarms',
+            importance: AndroidImportance.HIGH,
+            sound: 'alarm',
+            fullScreenAction: {
+              id: 'default',
+            },
+            pressAction: {
+              id: 'default',
+            },
+          },
+          ios: {
+            sound: 'alarm.mp3',
+            critical: true,
+            criticalVolume: 1.0,
+          },
         },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          weekday: day + 1,
-          hour: hours,
-          minute: minutes,
-          channelId: 'alarms',
-        },
-      });
+        timestampTrigger,
+      );
       notificationIds.push(id);
     }
   }
@@ -97,34 +120,56 @@ export async function scheduleAlarm(
 
 export async function cancelAlarm(notificationIds: string[]) {
   for (const id of notificationIds) {
-    await Notifications.cancelScheduledNotificationAsync(id);
+    await notifee.cancelNotification(id);
   }
 }
 
 export async function cancelAllAlarms() {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await notifee.cancelAllNotifications();
 }
 
 function getNextTriggerDate(hours: number, minutes: number): Date {
   const now = new Date();
   const trigger = new Date();
   trigger.setHours(hours, minutes, 0, 0);
-  
+
   if (trigger <= now) {
     trigger.setDate(trigger.getDate() + 1);
   }
-  
+
   return trigger;
 }
 
-export function addNotificationListener(
-  callback: (notification: Notifications.Notification) => void
-) {
-  return Notifications.addNotificationReceivedListener(callback);
+function getNextWeekdayTrigger(
+  hours: number,
+  minutes: number,
+  targetDay: number,
+): Date {
+  const now = new Date();
+  const trigger = new Date();
+  trigger.setHours(hours, minutes, 0, 0);
+
+  const currentDay = now.getDay();
+  let daysUntilTarget = (targetDay + 1 - currentDay + 7) % 7;
+
+  if (daysUntilTarget === 0 && trigger <= now) {
+    daysUntilTarget = 7;
+  }
+
+  trigger.setDate(trigger.getDate() + daysUntilTarget);
+  return trigger;
 }
 
-export function addNotificationResponseListener(
-  callback: (response: Notifications.NotificationResponse) => void
-) {
-  return Notifications.addNotificationResponseReceivedListener(callback);
+export function onForegroundEvent(
+  callback: (event: Event) => void,
+): () => void {
+  return notifee.onForegroundEvent(callback);
 }
+
+export function onBackgroundEvent(callback: (event: Event) => void): void {
+  notifee.onBackgroundEvent(async ({ type, detail }) => {
+    callback({ type, detail });
+  });
+}
+
+export { EventType };

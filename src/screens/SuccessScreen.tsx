@@ -4,7 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import * as Haptics from 'expo-haptics';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import Button from '../components/Button';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -19,8 +19,8 @@ export default function SuccessScreen() {
   const confettiRef = useRef<any>(null);
 
   useEffect(() => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
+    ReactNativeHapticFeedback.trigger('notificationSuccess');
+
     setTimeout(() => {
       confettiRef.current?.start();
     }, 300);

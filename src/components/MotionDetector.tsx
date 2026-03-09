@@ -1,7 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
+import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+  PhotoFile,
+} from 'react-native-vision-camera';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import RNFS from 'react-native-fs';
 
 interface MotionScore {
   totalIntensity: number;
@@ -26,10 +32,10 @@ const CAPTURE_INTERVAL = 100;
 
 const SCORE_COMMENTS: { min: number; max: number; comment: string }[] = [
   { min: 95, max: 100, comment: "Beyonc\u00e9 called, she's worried" },
-  { min: 80, max: 94, comment: "Not bad for someone half asleep" },
-  { min: 60, max: 79, comment: "The vibes were there... barely" },
-  { min: 40, max: 59, comment: "Your bed is judging you right now" },
-  { min: 20, max: 39, comment: "Was that dancing or a cry for help?" },
+  { min: 80, max: 94, comment: 'Not bad for someone half asleep' },
+  { min: 60, max: 79, comment: 'The vibes were there... barely' },
+  { min: 40, max: 59, comment: 'Your bed is judging you right now' },
+  { min: 20, max: 39, comment: 'Was that dancing or a cry for help?' },
   { min: 0, max: 19, comment: "We've seen better movement from a statue" },
 ];
 
@@ -47,8 +53,12 @@ export function calculateFinalScore(scoreData: MotionScore): number {
   const consistency = scoreData.dancingFrames / scoreData.frameCount;
   const consistencyScore = consistency * 35;
 
-  const totalZoneActivations = scoreData.zoneActivations.reduce((a, b) => a + b, 0);
-  const avgZonesPerFrame = totalZoneActivations / Math.max(scoreData.frameCount, 1);
+  const totalZoneActivations = scoreData.zoneActivations.reduce(
+    (a, b) => a + b,
+    0,
+  );
+  const avgZonesPerFrame =
+    totalZoneActivations / Math.max(scoreData.frameCount, 1);
   const varietyScore = Math.min(avgZonesPerFrame / 6, 1) * 15;
 
   const peakBonus = Math.min(scoreData.peakIntensity / 120, 1) * 10;
@@ -57,15 +67,18 @@ export function calculateFinalScore(scoreData: MotionScore): number {
   return Math.round(Math.min(Math.max(rawScore, 0), 100));
 }
 
-export default function MotionDetector({ 
-  onDancing, 
-  onScoreUpdate, 
-  onSessionComplete, 
+export default function MotionDetector({
+  onDancing,
+  onScoreUpdate,
+  onSessionComplete,
   isActive,
 }: MotionDetectorProps) {
   const cameraRef = useRef<Camera>(null);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [activeZones, setActiveZones] = useState<boolean[]>(Array(9).fill(false));
+  const device = useCameraDevice('front');
+  const { hasPermission, requestPermission } = useCameraPermission();
+  const [activeZones, setActiveZones] = useState<boolean[]>(
+    Array(9).fill(false),
+  );
   const previousFrameRef = useRef<number[][]>([]);
   const scoreRef = useRef<MotionScore>({
     totalIntensity: 0,
@@ -76,42 +89,50 @@ export default function MotionDetector({
   });
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    if (!hasPermission) {
+      requestPermission();
+    }
+  }, [hasPermission]);
 
   const analyzeFrame = useCallback(async () => {
     if (!cameraRef.current || !isActive) return;
 
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.1,
-        base64: true,
-        skipProcessing: true,
+      const photo: PhotoFile = await cameraRef.current.takePhoto({
+        qualityPrioritization: 'speed',
       });
 
-      if (!photo.base64) return;
+      const filePath = Platform.OS === 'android'
+        ? `file://${photo.path}`
+        : photo.path;
 
-      const currentFrame = processFrame(photo.base64);
-      
+      const base64 = await RNFS.readFile(
+        photo.path,
+        'base64',
+      );
+
+      RNFS.unlink(photo.path).catch(() => {});
+
+      const currentFrame = processFrame(base64);
+
       if (previousFrameRef.current.length > 0) {
         const { zones, intensities } = detectMotionInZonesWithIntensity(
-          previousFrameRef.current, 
-          currentFrame
+          previousFrameRef.current,
+          currentFrame,
         );
         setActiveZones(zones);
-        
+
         const activeCount = zones.filter(Boolean).length;
         const isDancing = activeCount >= MIN_ACTIVE_ZONES;
-        
-        const frameIntensity = intensities.reduce((a, b) => a + b, 0) / intensities.length;
+
+        const frameIntensity =
+          intensities.reduce((a, b) => a + b, 0) / intensities.length;
         const score = scoreRef.current;
         score.frameCount++;
         score.totalIntensity += frameIntensity;
         if (isDancing) score.dancingFrames++;
-        if (frameIntensity > score.peakIntensity) score.peakIntensity = frameIntensity;
+        if (frameIntensity > score.peakIntensity)
+          score.peakIntensity = frameIntensity;
         zones.forEach((active, i) => {
           if (active) score.zoneActivations[i]++;
         });
@@ -120,9 +141,9 @@ export default function MotionDetector({
         onScoreUpdate?.(currentScore);
 
         if (isDancing) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          ReactNativeHapticFeedback.trigger('impactLight');
         }
-        
+
         onDancing(isDancing);
       }
 
@@ -133,25 +154,11 @@ export default function MotionDetector({
   }, [isActive, onDancing, onScoreUpdate]);
 
   useEffect(() => {
-    if (!isActive || !hasPermission) return;
+    if (!isActive || !hasPermission || !device) return;
 
     const interval = setInterval(analyzeFrame, CAPTURE_INTERVAL);
     return () => clearInterval(interval);
-  }, [isActive, hasPermission, analyzeFrame]);
-
-  const getScoreData = useCallback(() => {
-    return scoreRef.current;
-  }, []);
-
-  const resetScore = useCallback(() => {
-    scoreRef.current = {
-      totalIntensity: 0,
-      frameCount: 0,
-      dancingFrames: 0,
-      peakIntensity: 0,
-      zoneActivations: Array(9).fill(0),
-    };
-  }, []);
+  }, [isActive, hasPermission, device, analyzeFrame]);
 
   const processFrame = (base64: string): number[][] => {
     const data = atob(base64);
@@ -162,7 +169,7 @@ export default function MotionDetector({
       const start = i * zoneSize;
       const end = start + zoneSize;
       const zoneData: number[] = [];
-      
+
       for (let j = start; j < end; j += 100) {
         zoneData.push(data.charCodeAt(j));
       }
@@ -173,8 +180,8 @@ export default function MotionDetector({
   };
 
   const detectMotionInZonesWithIntensity = (
-    prev: number[][], 
-    current: number[][]
+    prev: number[][],
+    current: number[][],
   ): { zones: boolean[]; intensities: number[] } => {
     const zones: boolean[] = [];
     const intensities: number[] = [];
@@ -185,14 +192,14 @@ export default function MotionDetector({
         intensities.push(0);
         return;
       }
-      
+
       let totalDiff = 0;
       const sampleSize = Math.min(zone.length, prev[i].length);
-      
+
       for (let j = 0; j < sampleSize; j++) {
         totalDiff += Math.abs(zone[j] - prev[i][j]);
       }
-      
+
       const avgDiff = totalDiff / sampleSize;
       zones.push(avgDiff > MOTION_THRESHOLD);
       intensities.push(avgDiff);
@@ -201,7 +208,7 @@ export default function MotionDetector({
     return { zones, intensities };
   };
 
-  if (hasPermission === null) {
+  if (!hasPermission) {
     return (
       <View style={styles.container}>
         <Text style={styles.text}>Requesting camera permission...</Text>
@@ -209,11 +216,10 @@ export default function MotionDetector({
     );
   }
 
-  if (hasPermission === false) {
+  if (!device) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Camera access denied</Text>
-        <Text style={styles.subtext}>Enable camera in settings to use motion detection</Text>
+        <Text style={styles.text}>No camera device available</Text>
       </View>
     );
   }
@@ -223,17 +229,16 @@ export default function MotionDetector({
       <Camera
         ref={cameraRef}
         style={styles.camera}
-        type={CameraType.front}
+        device={device}
+        isActive={isActive}
+        photo={true}
       />
-      
+
       <View style={styles.gridOverlay}>
         {activeZones.map((active, index) => (
           <View
             key={index}
-            style={[
-              styles.gridCell,
-              active && styles.gridCellActive,
-            ]}
+            style={[styles.gridCell, active && styles.gridCellActive]}
           />
         ))}
       </View>

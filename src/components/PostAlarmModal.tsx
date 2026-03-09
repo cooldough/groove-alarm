@@ -8,10 +8,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
-import * as Sharing from 'expo-sharing';
-import * as Haptics from 'expo-haptics';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import Share from 'react-native-share';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import { Share2, X } from 'lucide-react-native';
 
 import ShareCard, { ShareCardHandle } from './ShareCard';
@@ -39,19 +40,6 @@ export default function PostAlarmModal({
   const [saved, setSaved] = useState(false);
   const shareCardRef = useRef<ShareCardHandle>(null);
 
-  const requestMediaPermission = async (): Promise<boolean> => {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Permission Required',
-        'Please allow access to your photo library to save videos.',
-        [{ text: 'OK' }]
-      );
-      return false;
-    }
-    return true;
-  };
-
   const handleSaveVideo = async () => {
     if (!videoUri) {
       Alert.alert('No Video', 'No dance video was recorded for this session.');
@@ -60,13 +48,13 @@ export default function PostAlarmModal({
 
     setSaving(true);
     try {
-      const hasPermission = await requestMediaPermission();
-      if (!hasPermission) return;
-
-      await MediaLibrary.saveToLibraryAsync(videoUri);
+      await CameraRoll.saveAsset(videoUri, { type: 'video' });
       setSaved(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Saved!', 'Your dance video has been saved to your camera roll.');
+      ReactNativeHapticFeedback.trigger('notificationSuccess');
+      Alert.alert(
+        'Saved!',
+        'Your dance video has been saved to your camera roll.',
+      );
     } catch (error) {
       console.error('Error saving video:', error);
       Alert.alert('Error', 'Failed to save video. Please try again.');
@@ -89,20 +77,18 @@ export default function PostAlarmModal({
         return;
       }
 
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert('Sharing Unavailable', 'Sharing is not available on this device.');
-        return;
-      }
+      const isVideo = !!videoUri;
+      const shareOptions = {
+        title: `I scored ${score}/100 on Groove Alarm!`,
+        message: `I scored ${score}/100 on Groove Alarm! "${comment}"`,
+        url: Platform.OS === 'android' ? `file://${fileToShare}` : fileToShare,
+        type: isVideo ? 'video/mp4' : 'image/png',
+      };
 
-      await Sharing.shareAsync(fileToShare, {
-        mimeType: videoUri ? 'video/mp4' : 'image/png',
-        dialogTitle: `I scored ${score}/100 on Groove Alarm!`,
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await Share.open(shareOptions);
+      ReactNativeHapticFeedback.trigger('notificationSuccess');
     } catch (error: any) {
-      if (error.message?.includes('dismissed')) return;
+      if (error.message?.includes('dismissed') || error.message?.includes('cancel')) return;
       console.error('Error sharing:', error);
       Alert.alert('Error', 'Failed to share. Please try again.');
     } finally {
@@ -131,7 +117,7 @@ export default function PostAlarmModal({
             <X size={24} color="#A0A0B0" />
           </TouchableOpacity>
 
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
@@ -157,10 +143,10 @@ export default function PostAlarmModal({
             <View style={styles.actions}>
               {videoUri && (
                 <Button
-                  title={saved ? "Saved!" : "Save Video"}
+                  title={saved ? 'Saved!' : 'Save Video'}
                   onPress={handleSaveVideo}
                   loading={saving}
-                  variant={saved ? "ghost" : "primary"}
+                  variant={saved ? 'ghost' : 'primary'}
                   style={styles.actionButton}
                   testID="button-save-video"
                 />

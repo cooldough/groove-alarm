@@ -1,27 +1,21 @@
-import { Platform } from 'react-native';
-import Purchases, { 
-  PurchasesPackage, 
+import Purchases, {
+  PurchasesPackage,
   CustomerInfo,
-  LOG_LEVEL 
+  LOG_LEVEL,
 } from 'react-native-purchases';
-import Constants from 'expo-constants';
-
-const API_KEYS = {
-  ios: Constants.expoConfig?.extra?.revenueCatApiKeyIos || '',
-  android: Constants.expoConfig?.extra?.revenueCatApiKeyAndroid || '',
-};
+import { getRevenueCatApiKey } from './config';
 
 export async function initializePurchases() {
   try {
     Purchases.setLogLevel(LOG_LEVEL.DEBUG);
-    
-    const apiKey = Platform.OS === 'ios' ? API_KEYS.ios : API_KEYS.android;
-    
+
+    const apiKey = getRevenueCatApiKey();
+
     if (!apiKey || apiKey.startsWith('YOUR_')) {
       console.log('RevenueCat: No API key configured, running in demo mode');
       return;
     }
-    
+
     await Purchases.configure({ apiKey });
     console.log('RevenueCat: Initialized successfully');
   } catch (error) {
@@ -46,12 +40,12 @@ export async function purchaseLifetime(): Promise<boolean> {
   try {
     const offerings = await Purchases.getOfferings();
     const lifetimePackage = offerings.current?.lifetime;
-    
+
     if (!lifetimePackage) {
       console.log('RevenueCat: No lifetime package found, simulating purchase');
       return true;
     }
-    
+
     const { customerInfo } = await Purchases.purchasePackage(lifetimePackage);
     return checkPremiumStatus(customerInfo);
   } catch (error: any) {
@@ -62,7 +56,9 @@ export async function purchaseLifetime(): Promise<boolean> {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
+export async function purchasePackage(
+  pkg: PurchasesPackage,
+): Promise<boolean> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return checkPremiumStatus(customerInfo);

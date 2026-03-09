@@ -1,8 +1,6 @@
-import Constants from 'expo-constants';
+import { API_CONFIG } from './config';
 
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:5000/api' 
-  : 'https://your-app-url.replit.app/api';
+const API_BASE_URL = API_CONFIG.baseUrl;
 
 export interface Alarm {
   id: number;
@@ -29,10 +27,10 @@ export interface Sound {
 
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -40,11 +38,11 @@ async function apiRequest<T>(
       ...options.headers,
     },
   });
-  
+
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
-  
+
   return response.json();
 }
 
@@ -59,7 +57,10 @@ export async function createAlarm(alarm: Omit<Alarm, 'id'>): Promise<Alarm> {
   });
 }
 
-export async function updateAlarm(id: number, alarm: Partial<Alarm>): Promise<Alarm> {
+export async function updateAlarm(
+  id: number,
+  alarm: Partial<Alarm>,
+): Promise<Alarm> {
   return apiRequest<Alarm>(`/alarms/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(alarm),

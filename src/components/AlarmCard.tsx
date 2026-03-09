@@ -1,6 +1,6 @@
 import { View, Text, Switch, TouchableOpacity } from 'react-native';
 import { Trash2, Edit2 } from 'lucide-react-native';
-import * as Haptics from 'expo-haptics';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import Card from './Card';
 import Badge from './Badge';
@@ -24,7 +24,7 @@ export default function AlarmCard({
   onDelete,
 }: AlarmCardProps) {
   const handleToggle = (value: boolean) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    ReactNativeHapticFeedback.trigger('impactLight');
     onToggle(alarm.id, value);
   };
 

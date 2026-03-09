@@ -1,5 +1,5 @@
 import { TouchableOpacity, Text, ActivityIndicator, ViewStyle, TextStyle } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 interface ButtonProps {
   onPress: () => void;
@@ -25,7 +25,7 @@ export default function Button({
   testID,
 }: ButtonProps) {
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    ReactNativeHapticFeedback.trigger('impactLight');
     onPress();
   };
 

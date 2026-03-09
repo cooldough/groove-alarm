@@ -1,10 +1,9 @@
 # Dependencies
 node_modules/
 
-# Expo
-.expo/
-dist/
-web-build/
+# React Native
+.metro-health-check*
+*.hbc
 
 # Native builds
 *.orig.*
@@ -14,8 +13,16 @@ web-build/
 *.key
 *.mobileprovision
 
-# Metro
-.metro-health-check*
+# Android
+android/app/build/
+android/.gradle/
+android/build/
+local.properties
+
+# iOS
+ios/Pods/
+ios/build/
+*.xcuserdata
 
 # Debug
 npm-debug.*
@@ -42,9 +49,5 @@ coverage/
 *.swp
 *.swo
 
-# Build outputs (uncomment if using expo prebuild and don't want to track native folders)
-# android/
-# ios/
-
-# EAS
-.eas/
+# Build outputs
+dist/

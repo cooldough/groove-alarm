@@ -2,7 +2,6 @@
 
 > The alarm clock that makes you dance to wake up!
 
-[![Expo](https://img.shields.io/badge/Expo-50-000020?logo=expo)](https://expo.dev/)
 [![React Native](https://img.shields.io/badge/React%20Native-0.73-61DAFB?logo=react)](https://reactnative.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.1-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
@@ -15,14 +14,14 @@ Groove Alarm is a unique alarm clock app that requires you to physically dance t
 
 ### Features
 
-- **Motion Detection** - Camera-based 3x3 grid movement tracking with anti-cheat
+- **Motion Detection** - Camera-based 3x3 grid movement tracking via react-native-vision-camera
 - **Movement Scoring** - Score 0-100 based on intensity, consistency, zone variety, and peak movement
 - **Funny Comments** - Score-based reactions like "Beyonce called, she's worried" (95-100)
 - **Branded Share Cards** - Dark neon share card with score, comment, and app branding
-- **Video Export** - Save dance videos to camera roll
-- **Native Share Sheet** - Share to TikTok, Instagram, WhatsApp, etc.
-- **Native Alarms** - True alarm audio that bypasses Do Not Disturb (Android)
-- **Dual Audio Crossfade** - Alarm ringtone fades to dance music when you start moving
+- **Video Export** - Save dance videos to camera roll via @react-native-camera-roll/camera-roll
+- **Native Share Sheet** - Share to TikTok, Instagram, WhatsApp via react-native-share
+- **Native Alarms** - True alarm notifications via @notifee/react-native (bypasses DND on Android)
+- **Dual Audio Crossfade** - Alarm ringtone fades to dance music via react-native-sound
 - **Cyberpunk Theme** - Sleek neon pink/cyan dark UI with Orbitron font
 
 ---
@@ -39,34 +38,14 @@ Groove Alarm is a unique alarm clock app that requires you to physically dance t
 
 ---
 
-## Scoring System
-
-Movement is scored 0-100 based on:
-- **Intensity** (40%): Average motion intensity across frames
-- **Consistency** (35%): Percentage of frames where user was actively dancing
-- **Zone Variety** (15%): How many of the 3x3 grid zones were activated
-- **Peak Bonus** (10%): Maximum single-frame intensity
-
-Score comments:
-| Score | Comment |
-|-------|---------|
-| 95-100 | "Beyonce called, she's worried" |
-| 80-94 | "Not bad for someone half asleep" |
-| 60-79 | "The vibes were there... barely" |
-| 40-59 | "Your bed is judging you right now" |
-| 20-39 | "Was that dancing or a cry for help?" |
-| 0-19 | "We've seen better movement from a statue" |
-
----
-
 ## Quick Start
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 18+
-- [Expo CLI](https://docs.expo.dev/get-started/installation/)
-- [EAS CLI](https://docs.expo.dev/build/setup/) (for building APK/iOS)
-- Physical device with [Expo Go](https://expo.dev/client) or emulator
+- [React Native CLI](https://reactnative.dev/docs/environment-setup) (follow "React Native CLI Quickstart")
+- Android Studio with SDK 34+ (for Android)
+- Xcode 15+ with CocoaPods (for iOS, Mac only)
 
 ### Installation
 
@@ -76,27 +55,23 @@ cd groove-alarm
 
 npm install
 
-# Start the development server
-npm start
+# Link native font and sound assets
+npx react-native-asset
+
+# iOS only: Install CocoaPods
+cd ios && pod install && cd ..
 ```
 
-### Running on Device
+### Running
 
-**Expo Go (Quick testing)**
-1. Install Expo Go on your phone
-2. Run `npm start`
-3. Scan the QR code
-
-**Native Build (Full features)**
 ```bash
-# Generate native projects
-npx expo prebuild --clean
+# Start Metro bundler
+npm start
 
-# Android
+# Run on Android
 npm run android
 
-# iOS (Mac only)
-cd ios && pod install && cd ..
+# Run on iOS (Mac only)
 npm run ios
 ```
 
@@ -104,24 +79,24 @@ npm run ios
 
 ## Building for Production
 
-See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed build instructions including APK, AAB, and iOS builds.
-
-### Quick Build Commands
+### Android APK
 
 ```bash
-# Install EAS CLI
-npm install -g eas-cli
-eas login
-
-# Build APK for testing
-eas build --platform android --profile preview
-
-# Build for App Store
-eas build --platform ios --profile production
-
-# Build for Play Store
-eas build --platform android --profile production
+cd android
+./gradlew assembleDebug       # Debug APK
+./gradlew assembleRelease     # Release APK (needs signing keystore)
+./gradlew bundleRelease       # AAB for Play Store
 ```
+
+### iOS
+
+```bash
+cd ios && pod install && cd ..
+open ios/GrooveAlarm.xcworkspace
+# In Xcode: Product → Archive → Distribute
+```
+
+See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed build and signing instructions.
 
 ---
 
@@ -129,19 +104,19 @@ eas build --platform android --profile production
 
 ```
 groove-alarm/
-├── App.tsx                        # App entry point (fonts, navigation)
-├── app.json                       # Expo configuration
-├── eas.json                       # EAS Build profiles
-├── package.json                   # Dependencies
+├── App.tsx                        # App entry point (navigation, providers)
+├── app.json                       # React Native CLI config
+├── index.js                       # AppRegistry entry
+├── package.json                   # Dependencies (bare RN CLI)
 │
 ├── src/
 │   ├── components/
 │   │   ├── AlarmCard.tsx          # Alarm list item with Pro badges
 │   │   ├── Badge.tsx              # Status badges
-│   │   ├── Button.tsx             # Custom neon button
+│   │   ├── Button.tsx             # Custom neon button (haptic feedback)
 │   │   ├── Card.tsx               # Card container
 │   │   ├── CreateAlarmModal.tsx   # Alarm creation (15s free / Pro durations)
-│   │   ├── MotionDetector.tsx     # Camera 3x3 grid motion detection + scoring
+│   │   ├── MotionDetector.tsx     # Vision Camera 3x3 grid motion detection + scoring
 │   │   ├── PostAlarmModal.tsx     # Post-dance modal (Save/Share/Skip)
 │   │   └── ShareCard.tsx          # Branded share card (score + comment)
 │   │
@@ -155,11 +130,12 @@ groove-alarm/
 │   │   └── TermsScreen.tsx        # Terms of service
 │   │
 │   ├── navigation/
-│   │   └── RootNavigator.tsx      # Stack navigator + notification listener
+│   │   └── RootNavigator.tsx      # Stack navigator + notifee event listener
 │   │
 │   └── lib/
 │       ├── api.ts                 # Backend API client
-│       ├── notifications.ts       # Alarm scheduling (expo-notifications)
+│       ├── config.ts              # App configuration (RevenueCat keys, API URL)
+│       ├── notifications.ts       # Alarm scheduling (@notifee/react-native)
 │       ├── purchases.ts           # RevenueCat ($2.99 lifetime purchase)
 │       └── store.ts               # Zustand state management
 │
@@ -170,51 +146,42 @@ groove-alarm/
 
 ---
 
-## App Flow
+## Tech Stack
 
-1. **Onboarding** (first launch only) - 3 screens: intro, camera permission, setup tips
-2. **Paywall** - $2.99 lifetime Pro upsell (dismissible)
-3. **Dashboard** - Alarm list with create/edit/delete/toggle
-4. **Alarm Trigger** - Full-screen camera with motion detection, live scoring, countdown
-5. **Post-Alarm Modal** - Score + funny comment + Save Video / Share Now / Skip
-6. **Success** - Confetti celebration with final score
+| Category | Technology |
+|----------|------------|
+| Framework | React Native 0.73 (bare CLI) |
+| Language | TypeScript |
+| Navigation | React Navigation (native stack) |
+| State | Zustand + TanStack React Query |
+| Camera | react-native-vision-camera |
+| Audio | react-native-sound |
+| Notifications | @notifee/react-native |
+| Haptics | react-native-haptic-feedback |
+| Payments | RevenueCat (react-native-purchases) |
+| Sharing | react-native-share |
+| Camera Roll | @react-native-camera-roll/camera-roll |
+| File System | react-native-fs |
+| Share Card | react-native-view-shot |
+| Keep Awake | react-native-keep-awake |
+| Styling | StyleSheet (dark neon theme) |
+| Fonts | Orbitron, Rajdhani, Share Tech Mono |
 
 ---
 
 ## Configuration
 
 ### RevenueCat (In-App Purchase)
-Update `app.json` with your RevenueCat API keys:
-```json
-{
-  "extra": {
-    "revenueCatApiKeyIos": "your_ios_api_key",
-    "revenueCatApiKeyAndroid": "your_android_api_key"
-  }
-}
+Update `src/lib/config.ts` with your RevenueCat API keys:
+```typescript
+export const REVENUECAT_API_KEYS = {
+  ios: 'appl_YOUR_ACTUAL_KEY',
+  android: 'goog_YOUR_ACTUAL_KEY',
+};
 ```
 
 ### Backend API
-Update the API URL in `src/lib/api.ts` for your backend server.
-
----
-
-## Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| Framework | React Native 0.73 + Expo 50 |
-| Language | TypeScript |
-| Navigation | React Navigation (native stack) |
-| State | Zustand + TanStack React Query |
-| Camera | expo-camera |
-| Audio | expo-av (dual-track crossfade) |
-| Notifications | expo-notifications |
-| Payments | RevenueCat (react-native-purchases) |
-| Sharing | expo-sharing + expo-media-library |
-| Share Card | react-native-view-shot |
-| Styling | StyleSheet (dark neon theme) |
-| Fonts | Orbitron, Rajdhani, Share Tech Mono |
+Update `src/lib/config.ts` with your backend URL.
 
 ---
 
