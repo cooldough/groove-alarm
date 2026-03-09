@@ -13,7 +13,7 @@ import {
 import { CameraRoll } from '@react-native-camera-roll/camera-roll';
 import Share from 'react-native-share';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
-import { Share2, X } from 'lucide-react-native';
+import { Share2, X, Download, Image as ImageIcon } from 'lucide-react-native';
 
 import ShareCard, { ShareCardHandle } from './ShareCard';
 import Button from './Button';
@@ -37,6 +37,7 @@ export default function PostAlarmModal({
 }: PostAlarmModalProps) {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [sharingCard, setSharingCard] = useState(false);
   const [saved, setSaved] = useState(false);
   const shareCardRef = useRef<ShareCardHandle>(null);
 
@@ -63,36 +64,54 @@ export default function PostAlarmModal({
     }
   };
 
-  const handleShare = async () => {
+  const handleShareVideo = async () => {
+    if (!videoUri) return;
+
     setSharing(true);
     try {
-      let fileToShare = videoUri;
-
-      if (!fileToShare && shareCardRef.current) {
-        fileToShare = await shareCardRef.current.capture();
-      }
-
-      if (!fileToShare) {
-        Alert.alert('Error', 'Nothing to share. Please try again.');
-        return;
-      }
-
-      const isVideo = !!videoUri;
       const shareOptions = {
         title: `I scored ${score}/100 on Groove Alarm!`,
-        message: `I scored ${score}/100 on Groove Alarm! "${comment}"`,
-        url: Platform.OS === 'android' ? `file://${fileToShare}` : fileToShare,
-        type: isVideo ? 'video/mp4' : 'image/png',
+        message: `I scored ${score}/100 dancing to dismiss my alarm! "${comment}" - Groove Alarm`,
+        url: Platform.OS === 'android' ? videoUri : videoUri,
+        type: 'video/mp4',
       };
 
       await Share.open(shareOptions);
       ReactNativeHapticFeedback.trigger('notificationSuccess');
     } catch (error: any) {
       if (error.message?.includes('dismissed') || error.message?.includes('cancel')) return;
-      console.error('Error sharing:', error);
-      Alert.alert('Error', 'Failed to share. Please try again.');
+      console.error('Error sharing video:', error);
+      Alert.alert('Error', 'Failed to share video. Please try again.');
     } finally {
       setSharing(false);
+    }
+  };
+
+  const handleShareCard = async () => {
+    setSharingCard(true);
+    try {
+      if (!shareCardRef.current) {
+        Alert.alert('Error', 'Share card not ready. Please try again.');
+        return;
+      }
+
+      const cardUri = await shareCardRef.current.capture();
+
+      const shareOptions = {
+        title: `I scored ${score}/100 on Groove Alarm!`,
+        message: `I scored ${score}/100 dancing to dismiss my alarm! "${comment}" - Groove Alarm`,
+        url: Platform.OS === 'android' ? `file://${cardUri}` : cardUri,
+        type: 'image/png',
+      };
+
+      await Share.open(shareOptions);
+      ReactNativeHapticFeedback.trigger('notificationSuccess');
+    } catch (error: any) {
+      if (error.message?.includes('dismissed') || error.message?.includes('cancel')) return;
+      console.error('Error sharing card:', error);
+      Alert.alert('Error', 'Failed to share. Please try again.');
+    } finally {
+      setSharingCard(false);
     }
   };
 
@@ -142,28 +161,46 @@ export default function PostAlarmModal({
 
             <View style={styles.actions}>
               {videoUri && (
-                <Button
-                  title={saved ? 'Saved!' : 'Save Video'}
-                  onPress={handleSaveVideo}
-                  loading={saving}
-                  variant={saved ? 'ghost' : 'primary'}
-                  style={styles.actionButton}
-                  testID="button-save-video"
-                />
+                <>
+                  <TouchableOpacity
+                    style={styles.shareVideoButton}
+                    onPress={handleShareVideo}
+                    disabled={sharing}
+                    testID="button-share-video"
+                  >
+                    {sharing ? (
+                      <ActivityIndicator size="small" color="#0F0E17" />
+                    ) : (
+                      <>
+                        <Share2 size={20} color="#0F0E17" />
+                        <Text style={styles.shareVideoText}>Share Dance Video</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <Button
+                    title={saved ? 'Saved!' : 'Save Video to Camera Roll'}
+                    onPress={handleSaveVideo}
+                    loading={saving}
+                    variant={saved ? 'ghost' : 'outline'}
+                    style={styles.actionButton}
+                    testID="button-save-video"
+                  />
+                </>
               )}
 
               <TouchableOpacity
-                style={styles.shareButton}
-                onPress={handleShare}
-                disabled={sharing}
-                testID="button-share-now"
+                style={styles.shareCardButton}
+                onPress={handleShareCard}
+                disabled={sharingCard}
+                testID="button-share-card"
               >
-                {sharing ? (
-                  <ActivityIndicator size="small" color="#0F0E17" />
+                {sharingCard ? (
+                  <ActivityIndicator size="small" color="#FF00FF" />
                 ) : (
                   <>
-                    <Share2 size={20} color="#0F0E17" />
-                    <Text style={styles.shareButtonText}>Share Now</Text>
+                    <ImageIcon size={18} color="#FF00FF" />
+                    <Text style={styles.shareCardText}>Share Score Card</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -258,7 +295,7 @@ const styles = StyleSheet.create({
   actionButton: {
     width: '100%',
   },
-  shareButton: {
+  shareVideoButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -267,10 +304,26 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     gap: 8,
   },
-  shareButtonText: {
+  shareVideoText: {
     fontSize: 16,
     fontFamily: 'Rajdhani-Bold',
     color: '#0F0E17',
+  },
+  shareCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 0, 255, 0.1)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FF00FF',
+  },
+  shareCardText: {
+    fontSize: 15,
+    fontFamily: 'Rajdhani-Bold',
+    color: '#FF00FF',
   },
   skipButton: {
     alignItems: 'center',

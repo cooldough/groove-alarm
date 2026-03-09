@@ -30,6 +30,7 @@ export default function AlarmTriggerScreen() {
   const [finalScore, setFinalScore] = useState(0);
   const [finalComment, setFinalComment] = useState('');
   const [showPostAlarmModal, setShowPostAlarmModal] = useState(false);
+  const [recordedVideoUri, setRecordedVideoUri] = useState<string | null>(null);
   const alarmSoundRef = useRef<Sound | null>(null);
   const danceSoundRef = useRef<Sound | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,6 +172,10 @@ export default function AlarmTriggerScreen() {
     setCurrentScore(score);
   }, []);
 
+  const handleVideoRecorded = useCallback((videoUri: string) => {
+    setRecordedVideoUri(videoUri);
+  }, []);
+
   const handleComplete = () => {
     setIsComplete(true);
     ReactNativeHapticFeedback.trigger('notificationSuccess');
@@ -211,7 +216,9 @@ export default function AlarmTriggerScreen() {
           <MotionDetector
             onDancing={setIsDancing}
             onScoreUpdate={handleScoreUpdate}
+            onVideoRecorded={handleVideoRecorded}
             isActive={!isComplete}
+            shouldRecord={true}
           />
         </View>
 
@@ -248,7 +255,7 @@ export default function AlarmTriggerScreen() {
         score={finalScore}
         comment={finalComment}
         duration={duration}
-        videoUri={null}
+        videoUri={recordedVideoUri}
         onClose={handlePostAlarmClose}
       />
     </SafeAreaView>

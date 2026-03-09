@@ -5,6 +5,7 @@ import {
   useCameraDevice,
   useCameraPermission,
   PhotoFile,
+  VideoFile,
 } from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import RNFS from 'react-native-fs';
@@ -21,8 +22,9 @@ interface MotionDetectorProps {
   onDancing: (isDancing: boolean) => void;
   onScoreUpdate?: (score: number) => void;
   onSessionComplete?: (finalScore: number, comment: string) => void;
+  onVideoRecorded?: (videoUri: string) => void;
   isActive: boolean;
-  isRecording?: boolean;
+  shouldRecord?: boolean;
 }
 
 const GRID_SIZE = 3;
@@ -71,7 +73,9 @@ export default function MotionDetector({
   onDancing,
   onScoreUpdate,
   onSessionComplete,
+  onVideoRecorded,
   isActive,
+  shouldRecord = false,
 }: MotionDetectorProps) {
   const cameraRef = useRef<Camera>(null);
   const device = useCameraDevice('front');
@@ -80,6 +84,7 @@ export default function MotionDetector({
     Array(9).fill(false),
   );
   const previousFrameRef = useRef<number[][]>([]);
+  const isRecordingRef = useRef(false);
   const scoreRef = useRef<MotionScore>({
     totalIntensity: 0,
     frameCount: 0,
@@ -94,6 +99,53 @@ export default function MotionDetector({
     }
   }, [hasPermission]);
 
+  useEffect(() => {
+    if (isActive && shouldRecord && hasPermission && device && !isRecordingRef.current) {
+      startVideoRecording();
+    }
+  }, [isActive, shouldRecord, hasPermission, device]);
+
+  useEffect(() => {
+    if (!isActive && isRecordingRef.current) {
+      stopVideoRecording();
+    }
+  }, [isActive]);
+
+  const startVideoRecording = async () => {
+    if (!cameraRef.current || isRecordingRef.current) return;
+
+    try {
+      isRecordingRef.current = true;
+      cameraRef.current.startRecording({
+        onRecordingFinished: (video: VideoFile) => {
+          isRecordingRef.current = false;
+          const videoPath = Platform.OS === 'android'
+            ? `file://${video.path}`
+            : video.path;
+          onVideoRecorded?.(videoPath);
+        },
+        onRecordingError: (error) => {
+          isRecordingRef.current = false;
+          console.error('Recording error:', error);
+        },
+      });
+    } catch (error) {
+      isRecordingRef.current = false;
+      console.error('Failed to start recording:', error);
+    }
+  };
+
+  const stopVideoRecording = async () => {
+    if (!cameraRef.current || !isRecordingRef.current) return;
+
+    try {
+      await cameraRef.current.stopRecording();
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      isRecordingRef.current = false;
+    }
+  };
+
   const analyzeFrame = useCallback(async () => {
     if (!cameraRef.current || !isActive) return;
 
@@ -101,10 +153,6 @@ export default function MotionDetector({
       const photo: PhotoFile = await cameraRef.current.takePhoto({
         qualityPrioritization: 'speed',
       });
-
-      const filePath = Platform.OS === 'android'
-        ? `file://${photo.path}`
-        : photo.path;
 
       const base64 = await RNFS.readFile(
         photo.path,
@@ -232,6 +280,8 @@ export default function MotionDetector({
         device={device}
         isActive={isActive}
         photo={true}
+        video={true}
+        audio={true}
       />
 
       <View style={styles.gridOverlay}>

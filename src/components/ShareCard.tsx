@@ -33,6 +33,15 @@ const ShareCard = forwardRef<ShareCardHandle, ShareCardProps>(
       return '#FF0040';
     };
 
+    const getScoreEmoji = () => {
+      if (score >= 95) return '🔥';
+      if (score >= 80) return '💃';
+      if (score >= 60) return '🕺';
+      if (score >= 40) return '😅';
+      if (score >= 20) return '😬';
+      return '🗿';
+    };
+
     return (
       <ViewShot
         ref={viewShotRef}
@@ -40,31 +49,19 @@ const ShareCard = forwardRef<ShareCardHandle, ShareCardProps>(
         style={styles.container}
       >
         <View style={styles.card}>
-          <View style={styles.topSection}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>[LOGO]</Text>
-            </View>
-            <Text style={styles.appName}>GROOVE ALARM</Text>
-          </View>
+          <Text style={styles.headerLabel}>I WOKE UP DANCING</Text>
 
           <View style={styles.scoreSection}>
-            <Text style={[styles.scoreValue, { color: getScoreColor() }]}>
-              {score}
-            </Text>
-            <Text style={styles.scoreMax}>/100</Text>
+            <Text style={styles.emoji}>{getScoreEmoji()}</Text>
+            <View style={styles.scoreRow}>
+              <Text style={[styles.scoreValue, { color: getScoreColor() }]}>
+                {score}
+              </Text>
+              <Text style={styles.scoreMax}>/100</Text>
+            </View>
           </View>
 
           <Text style={styles.comment}>"{comment}"</Text>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.shareText}>Share your dance today</Text>
-
-          <View style={styles.bottomSection}>
-            <Text style={styles.storeText}>
-              Search Groove Alarm on the App Store & Google Play
-            </Text>
-          </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -77,6 +74,23 @@ const ShareCard = forwardRef<ShareCardHandle, ShareCardProps>(
                 {score >= 80 ? 'A+' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D'}
               </Text>
               <Text style={styles.statLabel}>grade</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.ctaText}>Can you beat my score?</Text>
+          <Text style={styles.storeText}>
+            Search "Groove Alarm" on the App Store & Google Play
+          </Text>
+
+          <View style={styles.bottomBranding}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoIcon}>♪</Text>
+            </View>
+            <View style={styles.brandTextContainer}>
+              <Text style={styles.brandName}>GROOVE ALARM</Text>
+              <Text style={styles.brandCompany}>by Kalopsia Labs</Text>
             </View>
           </View>
         </View>
@@ -104,39 +118,24 @@ const styles = StyleSheet.create({
     borderColor: '#FF00FF',
     overflow: 'hidden',
   },
-  topSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoPlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 0, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FF00FF',
-    marginBottom: 12,
-  },
-  logoText: {
-    fontSize: 10,
-    fontFamily: 'ShareTechMono',
-    color: '#FF00FF',
-  },
-  appName: {
-    fontSize: 24,
-    fontFamily: 'Orbitron',
-    color: '#FF00FF',
-    letterSpacing: 3,
-    textShadowColor: '#FF00FF',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+  headerLabel: {
+    fontSize: 12,
+    fontFamily: 'Rajdhani-Bold',
+    color: '#A0A0B0',
+    letterSpacing: 4,
+    marginBottom: 16,
   },
   scoreSection: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  emoji: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  scoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 12,
   },
   scoreValue: {
     fontSize: 72,
@@ -158,27 +157,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontStyle: 'italic',
   },
-  divider: {
-    width: '80%',
-    height: 1,
-    backgroundColor: '#3A3A50',
-    marginBottom: 16,
-  },
-  shareText: {
-    fontSize: 16,
-    fontFamily: 'Rajdhani-Bold',
-    color: '#00FFFF',
-    marginBottom: 8,
-  },
-  bottomSection: {
-    marginBottom: 16,
-  },
-  storeText: {
-    fontSize: 12,
-    fontFamily: 'Rajdhani',
-    color: '#A0A0B0',
-    textAlign: 'center',
-  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -187,6 +165,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     gap: 20,
+    marginBottom: 20,
   },
   statItem: {
     alignItems: 'center',
@@ -205,5 +184,58 @@ const styles = StyleSheet.create({
     width: 1,
     height: 30,
     backgroundColor: '#3A3A50',
+  },
+  divider: {
+    width: '80%',
+    height: 1,
+    backgroundColor: '#3A3A50',
+    marginBottom: 16,
+  },
+  ctaText: {
+    fontSize: 16,
+    fontFamily: 'Rajdhani-Bold',
+    color: '#00FFFF',
+    marginBottom: 4,
+  },
+  storeText: {
+    fontSize: 12,
+    fontFamily: 'Rajdhani',
+    color: '#A0A0B0',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  bottomBranding: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 8,
+  },
+  logoMark: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 0, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF00FF',
+  },
+  logoIcon: {
+    fontSize: 14,
+    color: '#FF00FF',
+  },
+  brandTextContainer: {
+    alignItems: 'flex-start',
+  },
+  brandName: {
+    fontSize: 12,
+    fontFamily: 'Orbitron',
+    color: '#FF00FF',
+    letterSpacing: 1,
+  },
+  brandCompany: {
+    fontSize: 9,
+    fontFamily: 'Rajdhani',
+    color: '#A0A0B0',
   },
 });
