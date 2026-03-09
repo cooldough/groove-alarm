@@ -64,7 +64,9 @@ export default function RootNavigator() {
         options={{ gestureEnabled: false }}
       />
       <Stack.Screen name="Success" component={SuccessScreen} />
-      <Stack.Screen name="Paywall" component={PaywallScreen} />
+      {!isFirstTimeUser && (
+        <Stack.Screen name="Paywall" component={PaywallScreen} />
+      )}
       <Stack.Screen name="Privacy" component={PrivacyScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />
     </Stack.Navigator>
