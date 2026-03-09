@@ -8,7 +8,7 @@
 
 ## What This App Does
 
-Groove Alarm is a React Native CLI (bare, **NOT Expo**) alarm clock app. When an alarm fires, the user must physically dance in front of their phone's front camera to dismiss it. The app uses motion detection across a 3x3 grid to verify movement, scores the dance 0-100, and lets users share branded score cards to social media. Pro version ($2.99 lifetime, one-time purchase via RevenueCat) unlocks longer dance durations, repeat scheduling, and all sounds.
+Groove Alarm is a React Native CLI (bare, **NOT Expo**) alarm clock app. When an alarm fires, the user must physically dance in front of their phone's front camera to dismiss it. The app uses motion detection across a 3x3 grid to verify movement, scores the dance 0-100, records the dance as video, and lets users share branded score cards or their dance video to social media. Pro version ($2.99 lifetime, one-time purchase via RevenueCat) unlocks longer dance durations, repeat scheduling, video sharing, and all sounds.
 
 ---
 
@@ -31,8 +31,8 @@ First Launch:
 
 Normal Use:
   DashboardScreen → [Create/Edit Alarm] → Alarm fires via @notifee →
-  AlarmTriggerScreen (dance + motion detection + countdown) →
-  PostAlarmModal (score, save video, share card, skip) →
+  AlarmTriggerScreen (dance + motion detection + countdown + video recording) →
+  PostAlarmModal (Share Dance Video, Save Video, Share Score Card, Skip) →
   SuccessScreen (celebration + confetti) → DashboardScreen
 ```
 
@@ -63,21 +63,24 @@ Normal Use:
 
 4. **AlarmTriggerScreen** (`src/screens/AlarmTriggerScreen.tsx`)
    - Receives `alarmId` and `duration` as route params
-   - Shows MotionDetector component (camera + 3x3 grid overlay)
+   - Shows MotionDetector component (camera + 3x3 grid overlay + video recording)
+   - **Records the entire dance session as video** via Vision Camera `startRecording`/`stopRecording`
    - Live score display, countdown timer with progress ring
    - Status text: "MOTION DETECTED" (cyan) / "WAITING FOR MOTION" (gray)
    - Audio: alarm.mp3 plays on loop initially; when dancing detected, alarm fades to 20% and dance.mp3 plays at full volume
    - Timer only counts down while user is actively dancing
-   - On complete: shows PostAlarmModal
+   - On complete: stops recording, receives video URI via `onVideoRecorded` callback, shows PostAlarmModal
    - Uses `KeepAwake.activate()` to prevent screen sleep
 
 5. **PostAlarmModal** (`src/components/PostAlarmModal.tsx`)
    - Shows final score (0-100), funny comment, emoji
-   - Contains ShareCard component (branded card for sharing)
-   - "Save Video" button (saves to camera roll via CameraRoll)
-   - "Share Now" button (cyan, opens native share sheet via react-native-share)
-   - "Skip" link
+   - Contains ShareCard component (branded card with Groove Alarm logo in bottom-right corner)
+   - **"Share Dance Video"** button (cyan) — shares recorded dance video via native share sheet
+   - **"Save Video to Camera Roll"** button — saves video to camera roll via CameraRoll
+   - **"Share Score Card"** button (magenta outline) — captures ShareCard as PNG and shares via native share sheet
+   - **"Skip"** link — dismisses without sharing
    - On close: navigates to SuccessScreen
+   - Video buttons only appear when a video was successfully recorded
 
 6. **SuccessScreen** (`src/screens/SuccessScreen.tsx`)
    - Confetti animation (react-native-confetti-cannon)
@@ -117,17 +120,29 @@ type RootStackParamList = {
 
 ### MotionDetector (`src/components/MotionDetector.tsx`)
 
-The core of the app. How it works:
+The core of the app. Handles both motion detection AND video recording simultaneously.
+
+**Motion Detection — how it works:**
 
 1. Uses `react-native-vision-camera` with `useCameraDevice('front')` and `useCameraPermission()`
-2. Every 100ms (`CAPTURE_INTERVAL`), takes a photo with `cameraRef.current.takePhoto({ qualityPrioritization: 'speed' })`
-3. Reads the photo as base64 via `RNFS.readFile(photo.path, 'base64')`
-4. Deletes the temp photo file immediately: `RNFS.unlink(photo.path)`
-5. Splits the base64 data into 9 zones (3x3 grid), sampling every 100th byte
-6. Compares current frame zones against previous frame zones
-7. If average pixel difference in a zone exceeds `MOTION_THRESHOLD` (30), that zone is "active"
-8. If `MIN_ACTIVE_ZONES` (3) or more zones are active, the user is "dancing"
-9. Triggers haptic feedback (`impactLight`) when dancing is detected
+2. Camera is configured with `photo={true}`, `video={true}`, `audio={false}`
+3. Every 100ms (`CAPTURE_INTERVAL`), takes a photo with `cameraRef.current.takePhoto({ qualityPrioritization: 'speed' })`
+4. Reads the photo as base64 via `RNFS.readFile(photo.path, 'base64')`
+5. Deletes the temp photo file immediately: `RNFS.unlink(photo.path)`
+6. Splits the base64 data into 9 zones (3x3 grid), sampling every 100th byte
+7. Compares current frame zones against previous frame zones
+8. If average pixel difference in a zone exceeds `MOTION_THRESHOLD` (30), that zone is "active"
+9. If `MIN_ACTIVE_ZONES` (3) or more zones are active, the user is "dancing"
+10. Triggers haptic feedback (`impactLight`) when dancing is detected
+
+**Video Recording — how it works:**
+
+1. When `shouldRecord={true}` and camera is ready, calls `cameraRef.current.startRecording()`
+2. Recording runs continuously in the background while motion detection photos are captured
+3. When `isActive` becomes false (dance session complete), calls `cameraRef.current.stopRecording()`
+4. `onRecordingFinished` callback receives a `VideoFile` with the `.path` to the recorded video
+5. The video path is passed up via `onVideoRecorded` callback to AlarmTriggerScreen
+6. Audio is disabled (`audio={false}`) — the video captures the visual dance only, no microphone needed
 
 **Scoring Algorithm** (0-100):
 - **Intensity** (40 pts): Average motion intensity across all frames, normalized to 80 max
@@ -151,25 +166,54 @@ interface MotionDetectorProps {
   onDancing: (isDancing: boolean) => void;
   onScoreUpdate?: (score: number) => void;
   onSessionComplete?: (finalScore: number, comment: string) => void;
+  onVideoRecorded?: (videoUri: string) => void;
   isActive: boolean;
-  isRecording?: boolean;
+  shouldRecord?: boolean;
 }
+```
+
+**Usage in AlarmTriggerScreen:**
+```typescript
+<MotionDetector
+  onDancing={setIsDancing}
+  onScoreUpdate={handleScoreUpdate}
+  onVideoRecorded={handleVideoRecorded}  // receives video file path
+  isActive={!isComplete}
+  shouldRecord={true}
+/>
 ```
 
 ### ShareCard (`src/components/ShareCard.tsx`)
 
-- Uses `react-native-view-shot` to capture the card as a PNG
-- Dark card with magenta border, score in large Orbitron font
-- Color-coded score: >=80 cyan, >=60 green, >=40 gold, >=20 orange, <20 red
-- Shows score, grade (A+/B/C/D), duration danced, funny comment
-- "GROOVE ALARM" branding, "[LOGO]" placeholder, app store text
-- Exposed via `forwardRef` with `ShareCardHandle.capture()` method
+Branded share card that gets captured as a PNG image for social sharing.
+
+- Uses `react-native-view-shot` (`ViewShot`) to capture the card as a PNG
+- Dark card (`#0F0E17`) with magenta border (`#FF00FF`)
+- Layout from top to bottom:
+  - "I WOKE UP DANCING" header label (gray, letter-spaced)
+  - Score emoji (fire/dancer/disco/sweat/grimace/statue based on score)
+  - Large score number in Orbitron font, color-coded: >=80 cyan, >=60 green, >=40 gold, >=20 orange, <20 red
+  - "/100" suffix in gray
+  - Funny comment in quotes (white, italic)
+  - Stats row: duration danced + letter grade (A+/B/C/D) in dark surface pill
+  - Divider line
+  - "Can you beat my score?" call-to-action (cyan)
+  - App store search text (gray)
+  - **Groove Alarm logo in bottom-right corner**: small magenta circle with music note icon + "GROOVE ALARM" text + "by Kalopsia Labs" subtitle, aligned to `flex-end`
+- Exposed via `forwardRef` with `ShareCardHandle.capture()` method that returns the PNG file path
 
 ### PostAlarmModal (`src/components/PostAlarmModal.tsx`)
 
-- Save Video: `CameraRoll.saveAsset(videoUri, { type: 'video' })`
-- Share: Captures ShareCard as image or uses video, opens `Share.open()` with title/message/url/type
-- Score emojis: 95+ fire, 80+ dancer, 60+ disco, 40+ sweat, 20+ grimace, <20 statue
+Post-dance modal with four distinct actions:
+
+1. **"Share Dance Video"** (cyan button, `testID="button-share-video"`) — only shown when `videoUri` exists. Opens native share sheet with the recorded dance video (mp4).
+2. **"Save Video to Camera Roll"** (outline button, `testID="button-save-video"`) — only shown when `videoUri` exists. Saves via `CameraRoll.saveAsset(videoUri, { type: 'video' })`. Shows "Saved!" text after success.
+3. **"Share Score Card"** (magenta outline button, `testID="button-share-card"`) — always shown. Captures the ShareCard component as a PNG via `shareCardRef.current.capture()` and opens native share sheet with the image.
+4. **"Skip"** (underlined text link, `testID="button-skip"`) — dismisses the modal.
+
+Share message format: `I scored ${score}/100 dancing to dismiss my alarm! "${comment}" - Groove Alarm`
+
+Score emojis: 95+ fire, 80+ dancer, 60+ disco, 40+ sweat, 20+ grimace, <20 statue
 
 ### AlarmCard (`src/components/AlarmCard.tsx`)
 
@@ -197,21 +241,35 @@ interface MotionDetectorProps {
 
 ## Library-Specific Implementation Patterns
 
-### react-native-vision-camera (Camera)
+### react-native-vision-camera (Camera + Video Recording)
 
 ```typescript
-import { Camera, useCameraDevice, useCameraPermission, PhotoFile } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useCameraPermission, PhotoFile, VideoFile } from 'react-native-vision-camera';
 
 const device = useCameraDevice('front');
 const { hasPermission, requestPermission } = useCameraPermission();
 
-// In JSX:
-<Camera ref={cameraRef} style={styles.camera} device={device} isActive={isActive} photo={true} />
+// In JSX — photo AND video enabled, no audio:
+<Camera ref={cameraRef} style={styles.camera} device={device} isActive={isActive}
+  photo={true} video={true} audio={false} />
 
-// Capture:
+// Photo capture (for motion detection):
 const photo: PhotoFile = await cameraRef.current.takePhoto({ qualityPrioritization: 'speed' });
 const base64 = await RNFS.readFile(photo.path, 'base64');
 RNFS.unlink(photo.path).catch(() => {});
+
+// Video recording (for dance session capture):
+cameraRef.current.startRecording({
+  onRecordingFinished: (video: VideoFile) => {
+    onVideoRecorded?.(video.path);  // Pass video path to parent
+  },
+  onRecordingError: (error) => {
+    console.error('Recording error:', error);
+  },
+});
+
+// Stop recording:
+await cameraRef.current.stopRecording();
 ```
 
 ### react-native-sound (Audio)
@@ -467,6 +525,7 @@ elevation: 8,
 | Repeat Days | One-time only (forced `isOneTime: true`) | Mon-Sun scheduling |
 | Sounds | 2 basic | All premium sounds |
 | Alarms | Unlimited | Unlimited |
+| Sharing | Score card only | Video + score sharing |
 
 Gating is done in `CreateAlarmModal`:
 - Duration selector: only 15s clickable for free users, others show disabled opacity + haptic warning
@@ -686,9 +745,9 @@ Add to `ios/GrooveAlarm/Info.plist`:
 | `src/screens/SuccessScreen.tsx` | Celebration with confetti, score display, "Done" button |
 | `src/screens/PrivacyScreen.tsx` | Static privacy policy text |
 | `src/screens/TermsScreen.tsx` | Static terms of service text |
-| `src/components/MotionDetector.tsx` | Vision Camera 3x3 grid motion detection, frame comparison, scoring algorithm |
-| `src/components/PostAlarmModal.tsx` | Post-dance modal: score, share card, save video, share, skip |
-| `src/components/ShareCard.tsx` | Branded share card captured via ViewShot for social sharing |
+| `src/components/MotionDetector.tsx` | Vision Camera 3x3 grid motion detection + video recording, frame comparison, scoring algorithm |
+| `src/components/PostAlarmModal.tsx` | Post-dance modal: Share Dance Video, Save Video, Share Score Card, Skip |
+| `src/components/ShareCard.tsx` | Branded share card with Groove Alarm logo in bottom-right corner, captured via ViewShot |
 | `src/components/AlarmCard.tsx` | Individual alarm display with toggle, edit, delete, Pro badges |
 | `src/components/CreateAlarmModal.tsx` | Alarm creation/edit form with Pro gating on duration and repeat days |
 | `src/components/Button.tsx` | Reusable button with variants, sizes, haptic feedback, loading state |
