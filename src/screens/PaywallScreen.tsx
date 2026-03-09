@@ -18,7 +18,7 @@ const FEATURES = [
   { free: 'One-time alarms', pro: 'Repeat scheduling', icon: '🔁' },
   { free: '2 basic sounds', pro: 'All premium sounds', icon: '🎵' },
   { free: 'Unlimited alarms', pro: 'Unlimited alarms', icon: '⏰' },
-  { free: 'No sharing', pro: 'Video share cards', icon: '📤' },
+  { free: 'Score card only', pro: 'Video + score sharing', icon: '📤' },
 ];
 
 export default function PaywallScreen() {

@@ -281,7 +281,7 @@ export default function MotionDetector({
         isActive={isActive}
         photo={true}
         video={true}
-        audio={true}
+        audio={false}
       />
 
       <View style={styles.gridOverlay}>
