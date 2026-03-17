@@ -1,0 +1,29 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/Orbitron-Bold.ttf",
+      "sha1": "67a0d46aab3eb8db6297df876aeced0c5c2cebac"
+    },
+    {
+      "path": "assets/fonts/Rajdhani-Bold.ttf",
+      "sha1": "85045273845d7d971feec8d0109d9251cd5de93a"
+    },
+    {
+      "path": "assets/fonts/Rajdhani-Regular.ttf",
+      "sha1": "7e9b19d005342c10cca5824332bc56f827d72051"
+    },
+    {
+      "path": "assets/fonts/ShareTechMono-Regular.ttf",
+      "sha1": "1fcb96f6a3c8f70746b2fcaa622e75eff8f5993a"
+    },
+    {
+      "path": "assets/sounds/alarm.mp3",
+      "sha1": "686ad85e5751f54449132226d9705410b78e3774"
+    },
+    {
+      "path": "assets/sounds/dance.mp3",
+      "sha1": "d1a68f29085bebc14cbb7c8d240979059de8b659"
+    }
+  ]
+}

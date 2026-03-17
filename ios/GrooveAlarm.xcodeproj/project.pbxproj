@@ -14,6 +14,12 @@
 		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		7699B88040F8A987B510C191 /* libPods-GrooveAlarm-GrooveAlarmTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 19F6CBCC0A4E27FBF8BF4A61 /* libPods-GrooveAlarm-GrooveAlarmTests.a */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		F1F06F50D19546C8BE5CF70D /* Orbitron-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 6B030F8FCD5B489DA5858828 /* Orbitron-Bold.ttf */; };
+		9226102236084B7DB9903724 /* Rajdhani-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0D66BA5BE2934A759238359F /* Rajdhani-Bold.ttf */; };
+		9C50548024F346BE8A2B2B40 /* Rajdhani-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A8C09528CF504E86BD85F913 /* Rajdhani-Regular.ttf */; };
+		D542609A553E45108D043E4C /* ShareTechMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 52C8EDE5A90C411995F807C1 /* ShareTechMono-Regular.ttf */; };
+		BB4B58886D64427789FA0BDE /* alarm.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 16C3C57F50C145BEA24FF02D /* alarm.mp3 */; };
+		46ED0FC43092496BAB07F54F /* dance.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1EC1190322714627AF81CFC0 /* dance.mp3 */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -44,6 +50,12 @@
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = GrooveAlarm/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		89C6BE57DB24E9ADA2F236DE /* Pods-GrooveAlarm-GrooveAlarmTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GrooveAlarm-GrooveAlarmTests.release.xcconfig"; path = "Target Support Files/Pods-GrooveAlarm-GrooveAlarmTests/Pods-GrooveAlarm-GrooveAlarmTests.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		6B030F8FCD5B489DA5858828 /* Orbitron-Bold.ttf */ = {isa = PBXFileReference; name = "Orbitron-Bold.ttf"; path = "../assets/fonts/Orbitron-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		0D66BA5BE2934A759238359F /* Rajdhani-Bold.ttf */ = {isa = PBXFileReference; name = "Rajdhani-Bold.ttf"; path = "../assets/fonts/Rajdhani-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		A8C09528CF504E86BD85F913 /* Rajdhani-Regular.ttf */ = {isa = PBXFileReference; name = "Rajdhani-Regular.ttf"; path = "../assets/fonts/Rajdhani-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		52C8EDE5A90C411995F807C1 /* ShareTechMono-Regular.ttf */ = {isa = PBXFileReference; name = "ShareTechMono-Regular.ttf"; path = "../assets/fonts/ShareTechMono-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		16C3C57F50C145BEA24FF02D /* alarm.mp3 */ = {isa = PBXFileReference; name = "alarm.mp3"; path = "../assets/sounds/alarm.mp3"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		1EC1190322714627AF81CFC0 /* dance.mp3 */ = {isa = PBXFileReference; name = "dance.mp3"; path = "../assets/sounds/dance.mp3"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,6 +134,7 @@
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
+				EE24B7C130EC46F1B42E767E /* Resources */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -147,6 +160,20 @@
 			);
 			path = Pods;
 			sourceTree = "<group>";
+		};
+		EE24B7C130EC46F1B42E767E /* Resources */ = {
+			isa = "PBXGroup";
+			children = (
+				6B030F8FCD5B489DA5858828 /* Orbitron-Bold.ttf */,
+				0D66BA5BE2934A759238359F /* Rajdhani-Bold.ttf */,
+				A8C09528CF504E86BD85F913 /* Rajdhani-Regular.ttf */,
+				52C8EDE5A90C411995F807C1 /* ShareTechMono-Regular.ttf */,
+				16C3C57F50C145BEA24FF02D /* alarm.mp3 */,
+				1EC1190322714627AF81CFC0 /* dance.mp3 */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+			path = "";
 		};
 /* End PBXGroup section */
 
@@ -243,6 +270,12 @@
 			files = (
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				F1F06F50D19546C8BE5CF70D /* Orbitron-Bold.ttf in Resources */,
+				9226102236084B7DB9903724 /* Rajdhani-Bold.ttf in Resources */,
+				9C50548024F346BE8A2B2B40 /* Rajdhani-Regular.ttf in Resources */,
+				D542609A553E45108D043E4C /* ShareTechMono-Regular.ttf in Resources */,
+				BB4B58886D64427789FA0BDE /* alarm.mp3 in Resources */,
+				46ED0FC43092496BAB07F54F /* dance.mp3 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
