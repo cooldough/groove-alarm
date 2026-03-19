@@ -6,13 +6,13 @@ import {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
-  PhotoFile,
 } from 'react-native-vision-camera';
+import RNFS from 'react-native-fs';
 import { FrameData } from '../lib/motionScorer';
 
 export interface MotionDetectorHandle {
@@ -31,15 +31,13 @@ interface MotionDetectorProps {
   fullScreen?: boolean;
 }
 
-const GRID_SIZE = 3;
-const MOTION_THRESHOLD = 18; // Must exceed JPEG compression noise (~5-10)
+const MOTION_THRESHOLD = 18;
 const MIN_ACTIVE_ZONES = 3;
-const CAPTURE_INTERVAL = 600; // ms between captures
+const CAPTURE_INTERVAL = 700;
 const MAX_FAILURES = 5;
-const SAMPLE_COUNT = 80; // samples per zone
-const SKIP_FRAMES = 2; // skip first N frames for auto-exposure settling
+const SAMPLE_COUNT = 80;
+const SKIP_FRAMES = 2;
 
-// Base64 character decode table
 const B64_LOOKUP: Record<string, number> = {};
 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
   .split('')
@@ -55,34 +53,10 @@ function decodeBase64Triplet(
   const c1 = B64_LOOKUP[b64[offset + 1]] || 0;
   const c2 = B64_LOOKUP[b64[offset + 2]] || 0;
   const c3 = B64_LOOKUP[b64[offset + 3]] || 0;
-
   const b0 = (c0 << 2) | (c1 >> 4);
   const b1 = ((c1 & 0x0f) << 4) | (c2 >> 2);
   const b2 = ((c2 & 0x03) << 6) | c3;
-
   return [b0 & 0xff, b1 & 0xff, b2 & 0xff];
-}
-
-function CameraView({
-  cameraRef,
-  device,
-  fullScreen,
-}: {
-  cameraRef: React.RefObject<Camera>;
-  device: any;
-  fullScreen?: boolean;
-}) {
-  return (
-    <Camera
-      ref={cameraRef}
-      style={StyleSheet.absoluteFillObject}
-      device={device}
-      isActive={true}
-      photo={true}
-      video={true}
-      audio={false}
-    />
-  );
 }
 
 const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
@@ -106,6 +80,7 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
     );
     const [useSimulation, setUseSimulation] = useState(false);
     const [permissionRequested, setPermissionRequested] = useState(false);
+    const [cameraReady, setCameraReady] = useState(false);
 
     const previousAvgsRef = useRef<number[]>([]);
     const capturingRef = useRef(false);
@@ -114,6 +89,7 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
     const frameCountRef = useRef(0);
     const isRecordingRef = useRef(false);
     const videoUriRef = useRef<string | null>(null);
+    const recordingStartedRef = useRef(false);
 
     useEffect(() => {
       if (!hasPermission && !permissionRequested) {
@@ -122,50 +98,54 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
       }
     }, [hasPermission, permissionRequested]);
 
-    // Start video recording after a short delay
+    // Start video recording after camera is ready and motion analysis has started
     useEffect(() => {
-      if (!hasPermission || !device || !isActive) return;
+      if (!hasPermission || !device || !isActive || !cameraReady) return;
 
-      const timer = setTimeout(async () => {
-        try {
-          if (cameraRef.current && !isRecordingRef.current) {
+      // Delay recording start to let photo-based analysis begin first
+      const timer = setTimeout(() => {
+        if (cameraRef.current && !isRecordingRef.current) {
+          try {
             isRecordingRef.current = true;
+            recordingStartedRef.current = true;
             cameraRef.current.startRecording({
               onRecordingFinished: (video) => {
                 videoUriRef.current = video.path;
                 isRecordingRef.current = false;
               },
               onRecordingError: (error) => {
-                console.error('Recording error:', error);
+                console.warn('Recording error (non-fatal):', error);
                 isRecordingRef.current = false;
+                recordingStartedRef.current = false;
               },
             });
+          } catch (err) {
+            console.warn('Failed to start recording (non-fatal):', err);
+            isRecordingRef.current = false;
+            recordingStartedRef.current = false;
           }
-        } catch (err) {
-          console.error('Failed to start recording:', err);
         }
-      }, 1500);
+      }, 2000);
 
       return () => clearTimeout(timer);
-    }, [hasPermission, device, isActive]);
+    }, [hasPermission, device, isActive, cameraReady]);
 
     useImperativeHandle(ref, () => ({
       stopRecording: async () => {
         try {
           if (cameraRef.current && isRecordingRef.current) {
             await cameraRef.current.stopRecording();
-            // Wait a bit for the callback to fire
+            // Wait for the onRecordingFinished callback
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
         } catch (err) {
-          console.error('Error stopping recording:', err);
+          console.warn('Error stopping recording:', err);
         }
         onRecordingComplete?.(videoUriRef.current, frameDataRef.current);
         return videoUriRef.current;
       },
     }));
 
-    // Compute average brightness for each of 9 zones using proper base64 decoding
     const computeZoneAverages = useCallback(
       (base64: string): number[] => {
         const len = base64.length;
@@ -180,7 +160,6 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
 
           for (let j = 0; j < SAMPLE_COUNT; j++) {
             const offset = zoneStart + j * step;
-            // Align to 4-char base64 boundary
             const aligned = offset - (offset % 4);
             if (aligned + 4 <= len) {
               const [b0, b1, b2] = decodeBase64Triplet(base64, aligned);
@@ -228,17 +207,16 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
 
       capturingRef.current = true;
       try {
-        const photo: PhotoFile = await cameraRef.current.takePhoto({
+        const photo = await cameraRef.current.takePhoto({
           qualityPrioritization: 'speed',
         });
 
-        // Read the photo as base64
-        const RNFS = require('react-native-fs');
         const base64 = await RNFS.readFile(photo.path, 'base64');
 
-        if (!base64) {
+        if (!base64 || base64.length < 100) {
           failureCountRef.current++;
           if (failureCountRef.current >= MAX_FAILURES) {
+            console.warn('Too many photo failures, switching to simulation');
             setUseSimulation(true);
           }
           return;
@@ -247,16 +225,16 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
         failureCountRef.current = 0;
         frameCountRef.current++;
 
-        // Skip first N frames for camera auto-exposure settling
         if (frameCountRef.current <= SKIP_FRAMES) {
           previousAvgsRef.current = computeZoneAverages(base64);
+          // Clean up temp file
+          try { await RNFS.unlink(photo.path); } catch (_) {}
           return;
         }
 
         const currentAvgs = computeZoneAverages(base64);
 
         if (previousAvgsRef.current.length > 0) {
-          // Compare zone averages - only flag zone if difference exceeds JPEG noise
           const zones = currentAvgs.map((avg, i) => {
             const diff = Math.abs(avg - previousAvgsRef.current[i]);
             return diff > MOTION_THRESHOLD;
@@ -282,12 +260,11 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
         previousAvgsRef.current = currentAvgs;
 
         // Clean up temp photo file
-        try {
-          await RNFS.unlink(photo.path);
-        } catch (_) {}
+        try { await RNFS.unlink(photo.path); } catch (_) {}
       } catch (error) {
         failureCountRef.current++;
         if (failureCountRef.current >= MAX_FAILURES) {
+          console.warn('Too many analysis failures, switching to simulation');
           setUseSimulation(true);
         }
       } finally {
@@ -304,10 +281,14 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
     ]);
 
     useEffect(() => {
-      if (!isActive || !hasPermission || !device) return;
+      if (!isActive || !hasPermission || !device || !cameraReady) return;
       const interval = setInterval(analyzeFrame, CAPTURE_INTERVAL);
       return () => clearInterval(interval);
-    }, [isActive, hasPermission, device, analyzeFrame]);
+    }, [isActive, hasPermission, device, cameraReady, analyzeFrame]);
+
+    const handleCameraInitialized = useCallback(() => {
+      setCameraReady(true);
+    }, []);
 
     if (!hasPermission) {
       return (
@@ -327,10 +308,15 @@ const MotionDetector = forwardRef<MotionDetectorHandle, MotionDetectorProps>(
 
     return (
       <View style={fullScreen ? styles.containerFull : styles.container}>
-        <CameraView
-          cameraRef={cameraRef}
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFillObject}
           device={device}
-          fullScreen={fullScreen}
+          isActive={isActive}
+          photo={true}
+          video={true}
+          audio={false}
+          onInitialized={handleCameraInitialized}
         />
 
         <View style={styles.gridOverlay}>
